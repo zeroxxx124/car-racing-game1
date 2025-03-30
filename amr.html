@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Racing Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #940a0a;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        .game-container {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            margin: 20px auto;
+            border: 5px solid #fff;
+            background: black;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+        canvas {
+            display: block;
+        }
+        .controls {
+            margin-top: 10px;
+            color: white;
+        }
+        .mobile-controls {
+            display: flex;
+            justify-content: center;
+            margin-top: 5px;
+        }
+        .control-button {
+            width: 50px;
+            height: 50px;
+            margin: 5px;
+            font-size: 24px;
+            background: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .score {
+            color: white;
+            font-size: 20px;
+            margin-top: 10px;
+        }
+        .game-over {
+            display: none;
+            color: white;
+            font-size: 24px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            border-radius: 10px;
+        }
+        .restart-button {
+            display: none;
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background: red;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="color: white;">Car Racing Game</h1>
+    <div class="score">Score: <span id="score">0</span></div>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+        <div id="gameOverMessage" class="game-over">
+            <p>Game Over!</p>
+            <p>Your Score: <span id="finalScore">0</span></p>
+            <button id="restartButton" class="restart-button">Restart</button>
+        </div>
+    </div>
+    <div class="controls">
+        <p>Use <strong>Arrow Left</strong> & <strong>Arrow Right</strong> to move the car.</p>
+    </div>
+    <div class="mobile-controls">
+        <button class="control-button" id="leftButton">⬅</button>
+        <button class="control-button" id="rightButton">➡</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = 400;
+        canvas.height = 600;
+
+        const road = new Image();
+        road.src = "images/road.png";
+
+        const carImage = new Image();
+        carImage.src = "images/car.png";
+
+        // Load enemy car images
+        const enemyCarImages = [
+            new Image(),
+            new Image(),
+            new Image(),
+            new Image()
+        ];
+        enemyCarImages[0].src = "images/enemy_car1.png";
+        enemyCarImages[1].src = "images/enemy_car2.png";
+        enemyCarImages[2].src = "images/enemy_car3.png";
+        enemyCarImages[3].src = "images/enemy_car4.png";
+
+        const car = {
+            x: 170,
+            y: 500,
+            width: 80,
+            height: 90,
+            speed: 5
+        };
+
+        let roadY = 0;
+        let keys = {};
+        let obstacles = [];
+        let gameOver = false;
+        let gameSpeed = 5;
+        let spawnRate = 0.02;
+        let score = 0;
+
+        function resetGame() {
+            car.x = 170;
+            car.y = 500;
+            obstacles = [];
+            gameOver = false;
+            gameSpeed = 5;
+            spawnRate = 0.02;
+            score = 0;
+            document.getElementById("score").textContent = score;
+            document.getElementById("gameOverMessage").style.display = "none";
+            document.getElementById("restartButton").style.display = "none";
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.getElementById("restartButton").addEventListener("click", resetGame);
+
+        window.addEventListener("keydown", function (e) {
+            keys[e.key] = true;
+        });
+
+        window.addEventListener("keyup", function (e) {
+            keys[e.key] = false;
+        });
+
+        function drawRoad() {
+            ctx.drawImage(road, 0, roadY, canvas.width, canvas.height);
+            ctx.drawImage(road, 0, roadY - canvas.height, canvas.width, canvas.height);
+            roadY += gameSpeed;
+            if (roadY >= canvas.height) {
+                roadY = 0;
+            }
+        }
+
+        function drawCar() {
+            ctx.drawImage(carImage, car.x, car.y, car.width, car.height);
+        }
+
+        function moveCar() {
+            if (keys["ArrowLeft"] && car.x > 0) {
+                car.x -= car.speed;
+            }
+            if (keys["ArrowRight"] && car.x < canvas.width - car.width) {
+                car.x += car.speed;
+            }
+        }
+
+        function generateObstacles() {
+            if (Math.random() < spawnRate) {
+                let lastObstacle = obstacles[obstacles.length - 1];
+                let minDistance = 100; // تقليل المسافة بين السيارات لجعلها أكثر عددًا
+                if (!lastObstacle || lastObstacle.y > minDistance) {
+                    let randomImage = enemyCarImages[Math.floor(Math.random() * enemyCarImages.length)];
+                    obstacles.push({
+                        x: Math.random() * 300,
+                        y: -50,
+                        width: 70,
+                        height: 90,
+                        image: randomImage
+                    });
+                }
+            }
+        }
+
+        function drawObstacles() {
+            obstacles.forEach(obstacle => {
+                ctx.drawImage(obstacle.image, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                obstacle.y += gameSpeed;
+            });
+        }
+
+        function checkCollision() {
+            for (let obstacle of obstacles) {
+                if (
+                    car.x + 15 < obstacle.x + obstacle.width - 15 &&
+                    car.x + car.width - 15 > obstacle.x + 15 &&
+                    car.y < obstacle.y + obstacle.height &&
+                    car.y + car.height > obstacle.y
+                ) {
+                    gameOver = true;
+                    document.getElementById("gameOverMessage").style.display = "block";
+                    document.getElementById("finalScore").textContent = score;
+                    document.getElementById("restartButton").style.display = "block";
+                }
+            }
+        }
+
+        function increaseDifficulty() {
+            gameSpeed += 0.5;
+            car.speed += 0.2;
+        }
+
+        function increaseCarSpawnRate() {
+            spawnRate += 0.005;
+            if (spawnRate > 0.08) spawnRate = 0.08;
+        }
+
+        function updateScore() {
+            if (!gameOver) {
+                score++;
+                document.getElementById("score").textContent = score;
+            }
+        }
+
+        function gameLoop() {
+            if (gameOver) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawRoad();
+            moveCar();
+            drawCar();
+            generateObstacles();
+            drawObstacles();
+            checkCollision();
+            requestAnimationFrame(gameLoop);
+        }
+
+        road.onload = function() {
+            requestAnimationFrame(gameLoop);
+        };
+
+        setInterval(increaseDifficulty, 10000);
+        setInterval(increaseCarSpawnRate, 10000);
+        setInterval(updateScore, 500);
+    </script>
+</body>
+</html>
